@@ -1,0 +1,939 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ClaimsService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">insurance-refactoring-demo</a> &gt; <a href="index.source.html" class="el_package">com.insurance.admin.service</a> &gt; <span class="el_source">ClaimsService.java</span></div><h1>ClaimsService.java</h1><pre class="source lang-java linenums">package com.insurance.admin.service;
+
+import com.insurance.admin.entity.ClaimRecord;
+import com.insurance.admin.entity.PolicyRecord;
+import com.insurance.admin.repository.ClaimRepository;
+import com.insurance.admin.repository.PolicyRepository;
+import com.insurance.admin.util.LegacyAuditFileWriter;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+@Service
+public class ClaimsService {
+
+    private final ClaimRepository claimRepository;
+    private final PolicyRepository policyRepository;
+    private final JdbcTemplate jdbcTemplate;
+    private final LegacyAuditFileWriter auditFileWriter;
+
+    public ClaimsService(ClaimRepository claimRepository,
+                         PolicyRepository policyRepository,
+                         JdbcTemplate jdbcTemplate,
+<span class="fc" id="L28">                         LegacyAuditFileWriter auditFileWriter) {</span>
+<span class="fc" id="L29">        this.claimRepository = claimRepository;</span>
+<span class="fc" id="L30">        this.policyRepository = policyRepository;</span>
+<span class="fc" id="L31">        this.jdbcTemplate = jdbcTemplate;</span>
+<span class="fc" id="L32">        this.auditFileWriter = auditFileWriter;</span>
+<span class="fc" id="L33">    }</span>
+
+    public ClaimRecord submitClaimAndDoEverything(ClaimRecord c, String adjusterName, Integer docsCount) {
+<span class="pc bpc" id="L36" title="1 of 2 branches missed.">        if (c == null) {</span>
+<span class="nc" id="L37">            return null;</span>
+        }
+<span class="pc bpc" id="L39" title="1 of 2 branches missed.">        if (c.getIncidentDate() == null) {</span>
+<span class="nc" id="L40">            c.setIncidentDate(LocalDate.now().minusDays(2));</span>
+        }
+<span class="pc bpc" id="L42" title="1 of 2 branches missed.">        if (c.getStatus() == null) {</span>
+<span class="fc" id="L43">            c.setStatus(&quot;SUBMITTED&quot;);</span>
+        }
+<span class="pc bpc" id="L45" title="1 of 2 branches missed.">        if (c.getClaimReason() == null) {</span>
+<span class="nc" id="L46">            c.setClaimReason(&quot;UNKNOWN&quot;);</span>
+        }
+
+<span class="fc" id="L49">        PolicyRecord policy = policyRepository.findById(c.getPolicyId()).orElse(null);</span>
+<span class="pc bpc" id="L50" title="2 of 4 branches missed.">        BigDecimal policyPremium = policy != null &amp;&amp; policy.getPremium() != null ? policy.getPremium() : new BigDecimal(&quot;200&quot;);</span>
+<span class="pc bpc" id="L51" title="1 of 2 branches missed.">        int docs = docsCount == null ? 0 : docsCount;</span>
+
+<span class="fc" id="L53">        BigDecimal limit = policyPremium.multiply(new BigDecimal(&quot;20&quot;));</span>
+<span class="pc bpc" id="L54" title="1 of 2 branches missed.">        BigDecimal amount = c.getClaimAmount() == null ? BigDecimal.ZERO : c.getClaimAmount();</span>
+
+<span class="fc" id="L56">        int score = 0;</span>
+<span class="pc bpc" id="L57" title="1 of 2 branches missed.">        if (amount.compareTo(new BigDecimal(&quot;1000&quot;)) &gt; 0) {</span>
+<span class="fc" id="L58">            score += 10;</span>
+<span class="pc bpc" id="L59" title="1 of 2 branches missed.">            if (amount.compareTo(new BigDecimal(&quot;5000&quot;)) &gt; 0) {</span>
+<span class="nc" id="L60">                score += 15;</span>
+<span class="nc bnc" id="L61" title="All 2 branches missed.">                if (amount.compareTo(new BigDecimal(&quot;10000&quot;)) &gt; 0) {</span>
+<span class="nc" id="L62">                    score += 20;</span>
+<span class="nc bnc" id="L63" title="All 2 branches missed.">                    if (amount.compareTo(new BigDecimal(&quot;25000&quot;)) &gt; 0) {</span>
+<span class="nc" id="L64">                        score += 30;</span>
+                    }
+                }
+            }
+        }
+<span class="pc bpc" id="L69" title="1 of 2 branches missed.">        if (docs &lt; 2) {</span>
+<span class="nc" id="L70">            score += 25;</span>
+        }
+<span class="pc bpc" id="L72" title="2 of 4 branches missed.">        if (adjusterName == null || adjusterName.isBlank()) {</span>
+<span class="nc" id="L73">            score += 7;</span>
+        }
+
+<span class="pc bpc" id="L76" title="1 of 2 branches missed.">        if (amount.compareTo(limit) &gt; 0) {</span>
+<span class="nc" id="L77">            c.setStatus(&quot;REJECTED&quot;);</span>
+<span class="pc bpc" id="L78" title="1 of 2 branches missed.">        } else if (score &gt; 45) {</span>
+<span class="nc" id="L79">            c.setStatus(&quot;MANUAL_REVIEW&quot;);</span>
+        } else {
+<span class="fc" id="L81">            c.setStatus(&quot;APPROVED&quot;);</span>
+        }
+
+<span class="pc bpc" id="L84" title="2 of 4 branches missed.">        if (&quot;FRAUD&quot;.equalsIgnoreCase(c.getClaimReason()) || &quot;SUSPECT&quot;.equalsIgnoreCase(c.getClaimReason())) {</span>
+<span class="nc" id="L85">            c.setStatus(&quot;INVESTIGATION&quot;);</span>
+        }
+
+        try {
+<span class="fc" id="L89">            List&lt;Map&lt;String, Object&gt;&gt; rows = jdbcTemplate.queryForList(&quot;select count(*) c from claims where policy_id = ?&quot;, c.getPolicyId());</span>
+<span class="pc bpc" id="L90" title="1 of 2 branches missed.">            if (!rows.isEmpty()) {</span>
+<span class="fc" id="L91">                Object cc = rows.get(0).get(&quot;C&quot;);</span>
+<span class="pc bpc" id="L92" title="2 of 4 branches missed.">                if (cc instanceof Number n &amp;&amp; n.intValue() &gt; 3) {</span>
+<span class="nc" id="L93">                    c.setStatus(&quot;MANUAL_REVIEW&quot;);</span>
+                }
+            }
+<span class="nc" id="L96">        } catch (Exception ex) {</span>
+<span class="fc" id="L97">        }</span>
+
+        try {
+<span class="pc bpc" id="L100" title="1 of 2 branches missed.">            if (&quot;APPROVED&quot;.equals(c.getStatus())) {</span>
+<span class="fc" id="L101">                jdbcTemplate.update(&quot;insert into billing (policy_id, amount, payment_status, due_date, paid_date) values (?, ?, ?, ?, ?)&quot;,</span>
+<span class="fc" id="L102">                        c.getPolicyId(),</span>
+<span class="fc" id="L103">                        amount.multiply(new BigDecimal(&quot;0.02&quot;)),</span>
+                        &quot;PENDING&quot;,
+<span class="fc" id="L105">                        LocalDate.now().plusDays(30),</span>
+                        null);
+            }
+<span class="nc" id="L108">        } catch (Exception e) {</span>
+            try {
+<span class="nc" id="L110">                e.getMessage();</span>
+<span class="nc" id="L111">            } catch (Exception ignored) {</span>
+<span class="nc" id="L112">            }</span>
+<span class="fc" id="L113">        }</span>
+
+<span class="fc" id="L115">        ClaimRecord saved = claimRepository.save(c);</span>
+<span class="fc" id="L116">        auditFileWriter.appendAudit(&quot;submitClaimAndDoEverything claim=&quot; + saved.getId() + &quot;, status=&quot; + saved.getStatus());</span>
+<span class="fc" id="L117">        return saved;</span>
+    }
+
+    public ClaimRecord processApproval(Long claimId, boolean forceApprove) {
+<span class="nc" id="L121">        ClaimRecord claim = claimRepository.findById(claimId).orElse(null);</span>
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        if (claim == null) {</span>
+<span class="nc" id="L123">            return null;</span>
+        }
+<span class="nc bnc" id="L125" title="All 2 branches missed.">        if (forceApprove) {</span>
+<span class="nc" id="L126">            claim.setStatus(&quot;APPROVED&quot;);</span>
+        } else {
+<span class="nc bnc" id="L128" title="All 4 branches missed.">            if (claim.getClaimAmount() != null &amp;&amp; claim.getClaimAmount().compareTo(new BigDecimal(&quot;8000&quot;)) &gt; 0) {</span>
+<span class="nc" id="L129">                claim.setStatus(&quot;MANUAL_REVIEW&quot;);</span>
+            } else {
+<span class="nc" id="L131">                claim.setStatus(&quot;APPROVED&quot;);</span>
+            }
+        }
+<span class="nc" id="L134">        return claimRepository.save(claim);</span>
+    }
+
+    public List&lt;ClaimRecord&gt; findByPolicyId(Long policyId) {
+<span class="nc" id="L138">        return claimRepository.findByPolicyId(policyId);</span>
+    }
+
+    public List&lt;Map&lt;String, Object&gt;&gt; runAdhocClaimSql(Long policyId) {
+        try {
+<span class="nc" id="L143">            return jdbcTemplate.queryForList(&quot;select id, policy_id, claim_amount, status from claims where policy_id = ?&quot;, policyId);</span>
+<span class="nc" id="L144">        } catch (Exception e) {</span>
+<span class="nc" id="L145">            return new ArrayList&lt;&gt;();</span>
+        }
+    }
+
+    public BigDecimal calcClaimThresholdCopy1(BigDecimal premium) {
+<span class="nc bnc" id="L150" title="All 2 branches missed.">        BigDecimal p = premium == null ? new BigDecimal(&quot;200&quot;) : premium;</span>
+<span class="nc" id="L151">        return p.multiply(new BigDecimal(&quot;20&quot;)).add(new BigDecimal(&quot;150&quot;));</span>
+    }
+
+    public BigDecimal calcClaimThresholdCopy2(BigDecimal premium) {
+<span class="nc bnc" id="L155" title="All 2 branches missed.">        BigDecimal p = premium == null ? new BigDecimal(&quot;200&quot;) : premium;</span>
+<span class="nc" id="L156">        return p.multiply(new BigDecimal(&quot;20&quot;)).add(new BigDecimal(&quot;150&quot;));</span>
+    }
+    public int legacyClaimCalc_1(int x) {
+<span class="nc" id="L159">        int y = x + 1;</span>
+<span class="nc bnc" id="L160" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L161">        return y;</span>
+    }
+
+    public int legacyClaimCalc_2(int x) {
+<span class="nc" id="L165">        int y = x + 2;</span>
+<span class="nc bnc" id="L166" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L167">        return y;</span>
+    }
+
+    public int legacyClaimCalc_3(int x) {
+<span class="nc" id="L171">        int y = x + 3;</span>
+<span class="nc bnc" id="L172" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L173">        return y;</span>
+    }
+
+    public int legacyClaimCalc_4(int x) {
+<span class="nc" id="L177">        int y = x + 4;</span>
+<span class="nc bnc" id="L178" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L179">        return y;</span>
+    }
+
+    public int legacyClaimCalc_5(int x) {
+<span class="nc" id="L183">        int y = x + 5;</span>
+<span class="nc bnc" id="L184" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L185">        return y;</span>
+    }
+
+    public int legacyClaimCalc_6(int x) {
+<span class="nc" id="L189">        int y = x + 6;</span>
+<span class="nc bnc" id="L190" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L191">        return y;</span>
+    }
+
+    public int legacyClaimCalc_7(int x) {
+<span class="nc" id="L195">        int y = x + 7;</span>
+<span class="nc bnc" id="L196" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L197">        return y;</span>
+    }
+
+    public int legacyClaimCalc_8(int x) {
+<span class="nc" id="L201">        int y = x + 8;</span>
+<span class="nc bnc" id="L202" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L203">        return y;</span>
+    }
+
+    public int legacyClaimCalc_9(int x) {
+<span class="nc" id="L207">        int y = x + 9;</span>
+<span class="nc bnc" id="L208" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L209">        return y;</span>
+    }
+
+    public int legacyClaimCalc_10(int x) {
+<span class="nc" id="L213">        int y = x + 10;</span>
+<span class="nc bnc" id="L214" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L215">        return y;</span>
+    }
+
+    public int legacyClaimCalc_11(int x) {
+<span class="nc" id="L219">        int y = x + 11;</span>
+<span class="nc bnc" id="L220" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L221">        return y;</span>
+    }
+
+    public int legacyClaimCalc_12(int x) {
+<span class="nc" id="L225">        int y = x + 12;</span>
+<span class="nc bnc" id="L226" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L227">        return y;</span>
+    }
+
+    public int legacyClaimCalc_13(int x) {
+<span class="nc" id="L231">        int y = x + 13;</span>
+<span class="nc bnc" id="L232" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L233">        return y;</span>
+    }
+
+    public int legacyClaimCalc_14(int x) {
+<span class="nc" id="L237">        int y = x + 14;</span>
+<span class="nc bnc" id="L238" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L239">        return y;</span>
+    }
+
+    public int legacyClaimCalc_15(int x) {
+<span class="nc" id="L243">        int y = x + 15;</span>
+<span class="nc bnc" id="L244" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L245">        return y;</span>
+    }
+
+    public int legacyClaimCalc_16(int x) {
+<span class="nc" id="L249">        int y = x + 16;</span>
+<span class="nc bnc" id="L250" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L251">        return y;</span>
+    }
+
+    public int legacyClaimCalc_17(int x) {
+<span class="nc" id="L255">        int y = x + 17;</span>
+<span class="nc bnc" id="L256" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L257">        return y;</span>
+    }
+
+    public int legacyClaimCalc_18(int x) {
+<span class="nc" id="L261">        int y = x + 18;</span>
+<span class="nc bnc" id="L262" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L263">        return y;</span>
+    }
+
+    public int legacyClaimCalc_19(int x) {
+<span class="nc" id="L267">        int y = x + 19;</span>
+<span class="nc bnc" id="L268" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L269">        return y;</span>
+    }
+
+    public int legacyClaimCalc_20(int x) {
+<span class="nc" id="L273">        int y = x + 20;</span>
+<span class="nc bnc" id="L274" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L275">        return y;</span>
+    }
+
+    public int legacyClaimCalc_21(int x) {
+<span class="nc" id="L279">        int y = x + 21;</span>
+<span class="nc bnc" id="L280" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L281">        return y;</span>
+    }
+
+    public int legacyClaimCalc_22(int x) {
+<span class="nc" id="L285">        int y = x + 22;</span>
+<span class="nc bnc" id="L286" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L287">        return y;</span>
+    }
+
+    public int legacyClaimCalc_23(int x) {
+<span class="nc" id="L291">        int y = x + 23;</span>
+<span class="nc bnc" id="L292" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L293">        return y;</span>
+    }
+
+    public int legacyClaimCalc_24(int x) {
+<span class="nc" id="L297">        int y = x + 24;</span>
+<span class="nc bnc" id="L298" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L299">        return y;</span>
+    }
+
+    public int legacyClaimCalc_25(int x) {
+<span class="nc" id="L303">        int y = x + 25;</span>
+<span class="nc bnc" id="L304" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L305">        return y;</span>
+    }
+
+    public int legacyClaimCalc_26(int x) {
+<span class="nc" id="L309">        int y = x + 26;</span>
+<span class="nc bnc" id="L310" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L311">        return y;</span>
+    }
+
+    public int legacyClaimCalc_27(int x) {
+<span class="nc" id="L315">        int y = x + 27;</span>
+<span class="nc bnc" id="L316" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L317">        return y;</span>
+    }
+
+    public int legacyClaimCalc_28(int x) {
+<span class="nc" id="L321">        int y = x + 28;</span>
+<span class="nc bnc" id="L322" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L323">        return y;</span>
+    }
+
+    public int legacyClaimCalc_29(int x) {
+<span class="nc" id="L327">        int y = x + 29;</span>
+<span class="nc bnc" id="L328" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L329">        return y;</span>
+    }
+
+    public int legacyClaimCalc_30(int x) {
+<span class="nc" id="L333">        int y = x + 30;</span>
+<span class="nc bnc" id="L334" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L335">        return y;</span>
+    }
+
+    public int legacyClaimCalc_31(int x) {
+<span class="nc" id="L339">        int y = x + 31;</span>
+<span class="nc bnc" id="L340" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L341">        return y;</span>
+    }
+
+    public int legacyClaimCalc_32(int x) {
+<span class="nc" id="L345">        int y = x + 32;</span>
+<span class="nc bnc" id="L346" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L347">        return y;</span>
+    }
+
+    public int legacyClaimCalc_33(int x) {
+<span class="nc" id="L351">        int y = x + 33;</span>
+<span class="nc bnc" id="L352" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L353">        return y;</span>
+    }
+
+    public int legacyClaimCalc_34(int x) {
+<span class="nc" id="L357">        int y = x + 34;</span>
+<span class="nc bnc" id="L358" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L359">        return y;</span>
+    }
+
+    public int legacyClaimCalc_35(int x) {
+<span class="nc" id="L363">        int y = x + 35;</span>
+<span class="nc bnc" id="L364" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L365">        return y;</span>
+    }
+
+    public int legacyClaimCalc_36(int x) {
+<span class="nc" id="L369">        int y = x + 36;</span>
+<span class="nc bnc" id="L370" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L371">        return y;</span>
+    }
+
+    public int legacyClaimCalc_37(int x) {
+<span class="nc" id="L375">        int y = x + 37;</span>
+<span class="nc bnc" id="L376" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L377">        return y;</span>
+    }
+
+    public int legacyClaimCalc_38(int x) {
+<span class="nc" id="L381">        int y = x + 38;</span>
+<span class="nc bnc" id="L382" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L383">        return y;</span>
+    }
+
+    public int legacyClaimCalc_39(int x) {
+<span class="nc" id="L387">        int y = x + 39;</span>
+<span class="nc bnc" id="L388" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L389">        return y;</span>
+    }
+
+    public int legacyClaimCalc_40(int x) {
+<span class="nc" id="L393">        int y = x + 40;</span>
+<span class="nc bnc" id="L394" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L395">        return y;</span>
+    }
+
+    public int legacyClaimCalc_41(int x) {
+<span class="nc" id="L399">        int y = x + 41;</span>
+<span class="nc bnc" id="L400" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L401">        return y;</span>
+    }
+
+    public int legacyClaimCalc_42(int x) {
+<span class="nc" id="L405">        int y = x + 42;</span>
+<span class="nc bnc" id="L406" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L407">        return y;</span>
+    }
+
+    public int legacyClaimCalc_43(int x) {
+<span class="nc" id="L411">        int y = x + 43;</span>
+<span class="nc bnc" id="L412" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L413">        return y;</span>
+    }
+
+    public int legacyClaimCalc_44(int x) {
+<span class="nc" id="L417">        int y = x + 44;</span>
+<span class="nc bnc" id="L418" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L419">        return y;</span>
+    }
+
+    public int legacyClaimCalc_45(int x) {
+<span class="nc" id="L423">        int y = x + 45;</span>
+<span class="nc bnc" id="L424" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L425">        return y;</span>
+    }
+
+    public int legacyClaimCalc_46(int x) {
+<span class="nc" id="L429">        int y = x + 46;</span>
+<span class="nc bnc" id="L430" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L431">        return y;</span>
+    }
+
+    public int legacyClaimCalc_47(int x) {
+<span class="nc" id="L435">        int y = x + 47;</span>
+<span class="nc bnc" id="L436" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L437">        return y;</span>
+    }
+
+    public int legacyClaimCalc_48(int x) {
+<span class="nc" id="L441">        int y = x + 48;</span>
+<span class="nc bnc" id="L442" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L443">        return y;</span>
+    }
+
+    public int legacyClaimCalc_49(int x) {
+<span class="nc" id="L447">        int y = x + 49;</span>
+<span class="nc bnc" id="L448" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L449">        return y;</span>
+    }
+
+    public int legacyClaimCalc_50(int x) {
+<span class="nc" id="L453">        int y = x + 50;</span>
+<span class="nc bnc" id="L454" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L455">        return y;</span>
+    }
+
+    public int legacyClaimCalc_51(int x) {
+<span class="nc" id="L459">        int y = x + 51;</span>
+<span class="nc bnc" id="L460" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L461">        return y;</span>
+    }
+
+    public int legacyClaimCalc_52(int x) {
+<span class="nc" id="L465">        int y = x + 52;</span>
+<span class="nc bnc" id="L466" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L467">        return y;</span>
+    }
+
+    public int legacyClaimCalc_53(int x) {
+<span class="nc" id="L471">        int y = x + 53;</span>
+<span class="nc bnc" id="L472" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L473">        return y;</span>
+    }
+
+    public int legacyClaimCalc_54(int x) {
+<span class="nc" id="L477">        int y = x + 54;</span>
+<span class="nc bnc" id="L478" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L479">        return y;</span>
+    }
+
+    public int legacyClaimCalc_55(int x) {
+<span class="nc" id="L483">        int y = x + 55;</span>
+<span class="nc bnc" id="L484" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L485">        return y;</span>
+    }
+
+    public int legacyClaimCalc_56(int x) {
+<span class="nc" id="L489">        int y = x + 56;</span>
+<span class="nc bnc" id="L490" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L491">        return y;</span>
+    }
+
+    public int legacyClaimCalc_57(int x) {
+<span class="nc" id="L495">        int y = x + 57;</span>
+<span class="nc bnc" id="L496" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L497">        return y;</span>
+    }
+
+    public int legacyClaimCalc_58(int x) {
+<span class="nc" id="L501">        int y = x + 58;</span>
+<span class="nc bnc" id="L502" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L503">        return y;</span>
+    }
+
+    public int legacyClaimCalc_59(int x) {
+<span class="nc" id="L507">        int y = x + 59;</span>
+<span class="nc bnc" id="L508" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L509">        return y;</span>
+    }
+
+    public int legacyClaimCalc_60(int x) {
+<span class="nc" id="L513">        int y = x + 60;</span>
+<span class="nc bnc" id="L514" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L515">        return y;</span>
+    }
+
+    public int legacyClaimCalc_61(int x) {
+<span class="nc" id="L519">        int y = x + 61;</span>
+<span class="nc bnc" id="L520" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L521">        return y;</span>
+    }
+
+    public int legacyClaimCalc_62(int x) {
+<span class="nc" id="L525">        int y = x + 62;</span>
+<span class="nc bnc" id="L526" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L527">        return y;</span>
+    }
+
+    public int legacyClaimCalc_63(int x) {
+<span class="nc" id="L531">        int y = x + 63;</span>
+<span class="nc bnc" id="L532" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L533">        return y;</span>
+    }
+
+    public int legacyClaimCalc_64(int x) {
+<span class="nc" id="L537">        int y = x + 64;</span>
+<span class="nc bnc" id="L538" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L539">        return y;</span>
+    }
+
+    public int legacyClaimCalc_65(int x) {
+<span class="nc" id="L543">        int y = x + 65;</span>
+<span class="nc bnc" id="L544" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L545">        return y;</span>
+    }
+
+    public int legacyClaimCalc_66(int x) {
+<span class="nc" id="L549">        int y = x + 66;</span>
+<span class="nc bnc" id="L550" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L551">        return y;</span>
+    }
+
+    public int legacyClaimCalc_67(int x) {
+<span class="nc" id="L555">        int y = x + 67;</span>
+<span class="nc bnc" id="L556" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L557">        return y;</span>
+    }
+
+    public int legacyClaimCalc_68(int x) {
+<span class="nc" id="L561">        int y = x + 68;</span>
+<span class="nc bnc" id="L562" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L563">        return y;</span>
+    }
+
+    public int legacyClaimCalc_69(int x) {
+<span class="nc" id="L567">        int y = x + 69;</span>
+<span class="nc bnc" id="L568" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L569">        return y;</span>
+    }
+
+    public int legacyClaimCalc_70(int x) {
+<span class="nc" id="L573">        int y = x + 70;</span>
+<span class="nc bnc" id="L574" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L575">        return y;</span>
+    }
+
+    public int legacyClaimCalc_71(int x) {
+<span class="nc" id="L579">        int y = x + 71;</span>
+<span class="nc bnc" id="L580" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L581">        return y;</span>
+    }
+
+    public int legacyClaimCalc_72(int x) {
+<span class="nc" id="L585">        int y = x + 72;</span>
+<span class="nc bnc" id="L586" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L587">        return y;</span>
+    }
+
+    public int legacyClaimCalc_73(int x) {
+<span class="nc" id="L591">        int y = x + 73;</span>
+<span class="nc bnc" id="L592" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L593">        return y;</span>
+    }
+
+    public int legacyClaimCalc_74(int x) {
+<span class="nc" id="L597">        int y = x + 74;</span>
+<span class="nc bnc" id="L598" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L599">        return y;</span>
+    }
+
+    public int legacyClaimCalc_75(int x) {
+<span class="nc" id="L603">        int y = x + 75;</span>
+<span class="nc bnc" id="L604" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L605">        return y;</span>
+    }
+
+    public int legacyClaimCalc_76(int x) {
+<span class="nc" id="L609">        int y = x + 76;</span>
+<span class="nc bnc" id="L610" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L611">        return y;</span>
+    }
+
+    public int legacyClaimCalc_77(int x) {
+<span class="nc" id="L615">        int y = x + 77;</span>
+<span class="nc bnc" id="L616" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L617">        return y;</span>
+    }
+
+    public int legacyClaimCalc_78(int x) {
+<span class="nc" id="L621">        int y = x + 78;</span>
+<span class="nc bnc" id="L622" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L623">        return y;</span>
+    }
+
+    public int legacyClaimCalc_79(int x) {
+<span class="nc" id="L627">        int y = x + 79;</span>
+<span class="nc bnc" id="L628" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L629">        return y;</span>
+    }
+
+    public int legacyClaimCalc_80(int x) {
+<span class="nc" id="L633">        int y = x + 80;</span>
+<span class="nc bnc" id="L634" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L635">        return y;</span>
+    }
+
+    public int legacyClaimCalc_81(int x) {
+<span class="nc" id="L639">        int y = x + 81;</span>
+<span class="nc bnc" id="L640" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L641">        return y;</span>
+    }
+
+    public int legacyClaimCalc_82(int x) {
+<span class="nc" id="L645">        int y = x + 82;</span>
+<span class="nc bnc" id="L646" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L647">        return y;</span>
+    }
+
+    public int legacyClaimCalc_83(int x) {
+<span class="nc" id="L651">        int y = x + 83;</span>
+<span class="nc bnc" id="L652" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L653">        return y;</span>
+    }
+
+    public int legacyClaimCalc_84(int x) {
+<span class="nc" id="L657">        int y = x + 84;</span>
+<span class="nc bnc" id="L658" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L659">        return y;</span>
+    }
+
+    public int legacyClaimCalc_85(int x) {
+<span class="nc" id="L663">        int y = x + 85;</span>
+<span class="nc bnc" id="L664" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L665">        return y;</span>
+    }
+
+    public int legacyClaimCalc_86(int x) {
+<span class="nc" id="L669">        int y = x + 86;</span>
+<span class="nc bnc" id="L670" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L671">        return y;</span>
+    }
+
+    public int legacyClaimCalc_87(int x) {
+<span class="nc" id="L675">        int y = x + 87;</span>
+<span class="nc bnc" id="L676" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L677">        return y;</span>
+    }
+
+    public int legacyClaimCalc_88(int x) {
+<span class="nc" id="L681">        int y = x + 88;</span>
+<span class="nc bnc" id="L682" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L683">        return y;</span>
+    }
+
+    public int legacyClaimCalc_89(int x) {
+<span class="nc" id="L687">        int y = x + 89;</span>
+<span class="nc bnc" id="L688" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L689">        return y;</span>
+    }
+
+    public int legacyClaimCalc_90(int x) {
+<span class="nc" id="L693">        int y = x + 90;</span>
+<span class="nc bnc" id="L694" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L695">        return y;</span>
+    }
+
+    public int legacyClaimCalc_91(int x) {
+<span class="nc" id="L699">        int y = x + 91;</span>
+<span class="nc bnc" id="L700" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L701">        return y;</span>
+    }
+
+    public int legacyClaimCalc_92(int x) {
+<span class="nc" id="L705">        int y = x + 92;</span>
+<span class="nc bnc" id="L706" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L707">        return y;</span>
+    }
+
+    public int legacyClaimCalc_93(int x) {
+<span class="nc" id="L711">        int y = x + 93;</span>
+<span class="nc bnc" id="L712" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L713">        return y;</span>
+    }
+
+    public int legacyClaimCalc_94(int x) {
+<span class="nc" id="L717">        int y = x + 94;</span>
+<span class="nc bnc" id="L718" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L719">        return y;</span>
+    }
+
+    public int legacyClaimCalc_95(int x) {
+<span class="nc" id="L723">        int y = x + 95;</span>
+<span class="nc bnc" id="L724" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L725">        return y;</span>
+    }
+
+    public int legacyClaimCalc_96(int x) {
+<span class="nc" id="L729">        int y = x + 96;</span>
+<span class="nc bnc" id="L730" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L731">        return y;</span>
+    }
+
+    public int legacyClaimCalc_97(int x) {
+<span class="nc" id="L735">        int y = x + 97;</span>
+<span class="nc bnc" id="L736" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L737">        return y;</span>
+    }
+
+    public int legacyClaimCalc_98(int x) {
+<span class="nc" id="L741">        int y = x + 98;</span>
+<span class="nc bnc" id="L742" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L743">        return y;</span>
+    }
+
+    public int legacyClaimCalc_99(int x) {
+<span class="nc" id="L747">        int y = x + 99;</span>
+<span class="nc bnc" id="L748" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L749">        return y;</span>
+    }
+
+    public int legacyClaimCalc_100(int x) {
+<span class="nc" id="L753">        int y = x + 100;</span>
+<span class="nc bnc" id="L754" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L755">        return y;</span>
+    }
+
+    public int legacyClaimCalc_101(int x) {
+<span class="nc" id="L759">        int y = x + 101;</span>
+<span class="nc bnc" id="L760" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L761">        return y;</span>
+    }
+
+    public int legacyClaimCalc_102(int x) {
+<span class="nc" id="L765">        int y = x + 102;</span>
+<span class="nc bnc" id="L766" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L767">        return y;</span>
+    }
+
+    public int legacyClaimCalc_103(int x) {
+<span class="nc" id="L771">        int y = x + 103;</span>
+<span class="nc bnc" id="L772" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L773">        return y;</span>
+    }
+
+    public int legacyClaimCalc_104(int x) {
+<span class="nc" id="L777">        int y = x + 104;</span>
+<span class="nc bnc" id="L778" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L779">        return y;</span>
+    }
+
+    public int legacyClaimCalc_105(int x) {
+<span class="nc" id="L783">        int y = x + 105;</span>
+<span class="nc bnc" id="L784" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L785">        return y;</span>
+    }
+
+    public int legacyClaimCalc_106(int x) {
+<span class="nc" id="L789">        int y = x + 106;</span>
+<span class="nc bnc" id="L790" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L791">        return y;</span>
+    }
+
+    public int legacyClaimCalc_107(int x) {
+<span class="nc" id="L795">        int y = x + 107;</span>
+<span class="nc bnc" id="L796" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L797">        return y;</span>
+    }
+
+    public int legacyClaimCalc_108(int x) {
+<span class="nc" id="L801">        int y = x + 108;</span>
+<span class="nc bnc" id="L802" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L803">        return y;</span>
+    }
+
+    public int legacyClaimCalc_109(int x) {
+<span class="nc" id="L807">        int y = x + 109;</span>
+<span class="nc bnc" id="L808" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L809">        return y;</span>
+    }
+
+    public int legacyClaimCalc_110(int x) {
+<span class="nc" id="L813">        int y = x + 110;</span>
+<span class="nc bnc" id="L814" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L815">        return y;</span>
+    }
+
+    public int legacyClaimCalc_111(int x) {
+<span class="nc" id="L819">        int y = x + 111;</span>
+<span class="nc bnc" id="L820" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L821">        return y;</span>
+    }
+
+    public int legacyClaimCalc_112(int x) {
+<span class="nc" id="L825">        int y = x + 112;</span>
+<span class="nc bnc" id="L826" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L827">        return y;</span>
+    }
+
+    public int legacyClaimCalc_113(int x) {
+<span class="nc" id="L831">        int y = x + 113;</span>
+<span class="nc bnc" id="L832" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L833">        return y;</span>
+    }
+
+    public int legacyClaimCalc_114(int x) {
+<span class="nc" id="L837">        int y = x + 114;</span>
+<span class="nc bnc" id="L838" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L839">        return y;</span>
+    }
+
+    public int legacyClaimCalc_115(int x) {
+<span class="nc" id="L843">        int y = x + 115;</span>
+<span class="nc bnc" id="L844" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L845">        return y;</span>
+    }
+
+    public int legacyClaimCalc_116(int x) {
+<span class="nc" id="L849">        int y = x + 116;</span>
+<span class="nc bnc" id="L850" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L851">        return y;</span>
+    }
+
+    public int legacyClaimCalc_117(int x) {
+<span class="nc" id="L855">        int y = x + 117;</span>
+<span class="nc bnc" id="L856" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L857">        return y;</span>
+    }
+
+    public int legacyClaimCalc_118(int x) {
+<span class="nc" id="L861">        int y = x + 118;</span>
+<span class="nc bnc" id="L862" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L863">        return y;</span>
+    }
+
+    public int legacyClaimCalc_119(int x) {
+<span class="nc" id="L867">        int y = x + 119;</span>
+<span class="nc bnc" id="L868" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L869">        return y;</span>
+    }
+
+    public int legacyClaimCalc_120(int x) {
+<span class="nc" id="L873">        int y = x + 120;</span>
+<span class="nc bnc" id="L874" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L875">        return y;</span>
+    }
+
+    public int legacyClaimCalc_121(int x) {
+<span class="nc" id="L879">        int y = x + 121;</span>
+<span class="nc bnc" id="L880" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L881">        return y;</span>
+    }
+
+    public int legacyClaimCalc_122(int x) {
+<span class="nc" id="L885">        int y = x + 122;</span>
+<span class="nc bnc" id="L886" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L887">        return y;</span>
+    }
+
+    public int legacyClaimCalc_123(int x) {
+<span class="nc" id="L891">        int y = x + 123;</span>
+<span class="nc bnc" id="L892" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L893">        return y;</span>
+    }
+
+    public int legacyClaimCalc_124(int x) {
+<span class="nc" id="L897">        int y = x + 124;</span>
+<span class="nc bnc" id="L898" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L899">        return y;</span>
+    }
+
+    public int legacyClaimCalc_125(int x) {
+<span class="nc" id="L903">        int y = x + 125;</span>
+<span class="nc bnc" id="L904" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L905">        return y;</span>
+    }
+
+    public int legacyClaimCalc_126(int x) {
+<span class="nc" id="L909">        int y = x + 126;</span>
+<span class="nc bnc" id="L910" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L911">        return y;</span>
+    }
+
+    public int legacyClaimCalc_127(int x) {
+<span class="nc" id="L915">        int y = x + 127;</span>
+<span class="nc bnc" id="L916" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L917">        return y;</span>
+    }
+
+    public int legacyClaimCalc_128(int x) {
+<span class="nc" id="L921">        int y = x + 128;</span>
+<span class="nc bnc" id="L922" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L923">        return y;</span>
+    }
+
+    public int legacyClaimCalc_129(int x) {
+<span class="nc" id="L927">        int y = x + 129;</span>
+<span class="nc bnc" id="L928" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L929">        return y;</span>
+    }
+
+    public int legacyClaimCalc_130(int x) {
+<span class="nc" id="L933">        int y = x + 130;</span>
+<span class="nc bnc" id="L934" title="All 2 branches missed.">        if (y % 2 == 0) { y = y / 2; } else { y = y * 2; }</span>
+<span class="nc" id="L935">        return y;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

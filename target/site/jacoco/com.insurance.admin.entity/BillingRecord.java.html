@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BillingRecord.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">insurance-refactoring-demo</a> &gt; <a href="index.source.html" class="el_package">com.insurance.admin.entity</a> &gt; <span class="el_source">BillingRecord.java</span></div><h1>BillingRecord.java</h1><pre class="source lang-java linenums">package com.insurance.admin.entity;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+@Entity
+@Table(name = &quot;billing&quot;)
+<span class="fc" id="L14">public class BillingRecord {</span>
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private Long policyId;
+    private BigDecimal amount;
+    private String paymentStatus;
+    private LocalDate dueDate;
+    private LocalDate paidDate;
+
+    public Long getId() {
+<span class="fc" id="L27">        return id;</span>
+    }
+
+    public void setId(Long id) {
+<span class="fc" id="L31">        this.id = id;</span>
+<span class="fc" id="L32">    }</span>
+
+    public Long getPolicyId() {
+<span class="fc" id="L35">        return policyId;</span>
+    }
+
+    public void setPolicyId(Long policyId) {
+<span class="fc" id="L39">        this.policyId = policyId;</span>
+<span class="fc" id="L40">    }</span>
+
+    public BigDecimal getAmount() {
+<span class="fc" id="L43">        return amount;</span>
+    }
+
+    public void setAmount(BigDecimal amount) {
+<span class="fc" id="L47">        this.amount = amount;</span>
+<span class="fc" id="L48">    }</span>
+
+    public String getPaymentStatus() {
+<span class="fc" id="L51">        return paymentStatus;</span>
+    }
+
+    public void setPaymentStatus(String paymentStatus) {
+<span class="fc" id="L55">        this.paymentStatus = paymentStatus;</span>
+<span class="fc" id="L56">    }</span>
+
+    public LocalDate getDueDate() {
+<span class="fc" id="L59">        return dueDate;</span>
+    }
+
+    public void setDueDate(LocalDate dueDate) {
+<span class="fc" id="L63">        this.dueDate = dueDate;</span>
+<span class="fc" id="L64">    }</span>
+
+    public LocalDate getPaidDate() {
+<span class="fc" id="L67">        return paidDate;</span>
+    }
+
+    public void setPaidDate(LocalDate paidDate) {
+<span class="fc" id="L71">        this.paidDate = paidDate;</span>
+<span class="fc" id="L72">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

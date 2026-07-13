@@ -1,0 +1,951 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PolicyService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">insurance-refactoring-demo</a> &gt; <a href="index.source.html" class="el_package">com.insurance.admin.service</a> &gt; <span class="el_source">PolicyService.java</span></div><h1>PolicyService.java</h1><pre class="source lang-java linenums">package com.insurance.admin.service;
+
+import com.insurance.admin.entity.CustomerRecord;
+import com.insurance.admin.entity.PolicyRecord;
+import com.insurance.admin.repository.CustomerRepository;
+import com.insurance.admin.repository.PolicyRepository;
+import com.insurance.admin.service.legacy.LegacyPremiumUtil;
+import com.insurance.admin.service.pricing.PremiumCalculator;
+import com.insurance.admin.util.LegacyAuditFileWriter;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+@Service
+public class PolicyService {
+
+    private final PolicyRepository policyRepository;
+    private final CustomerRepository customerRepository;
+    private final JdbcTemplate jdbcTemplate;
+    private final LegacyAuditFileWriter auditFileWriter;
+    private final LegacyPremiumUtil premiumUtil;
+    private final PremiumCalculator premiumCalculator;
+
+    public PolicyService(PolicyRepository policyRepository,
+                         CustomerRepository customerRepository,
+                         JdbcTemplate jdbcTemplate,
+                         LegacyAuditFileWriter auditFileWriter,
+<span class="fc" id="L34">                         PremiumCalculator premiumCalculator) {</span>
+<span class="fc" id="L35">        this.policyRepository = policyRepository;</span>
+<span class="fc" id="L36">        this.customerRepository = customerRepository;</span>
+<span class="fc" id="L37">        this.jdbcTemplate = jdbcTemplate;</span>
+<span class="fc" id="L38">        this.auditFileWriter = auditFileWriter;</span>
+<span class="fc" id="L39">        this.premiumCalculator = premiumCalculator;</span>
+<span class="fc" id="L40">        this.premiumUtil = new LegacyPremiumUtil(premiumCalculator);</span>
+<span class="fc" id="L41">    }</span>
+
+    public PolicyRecord createPolicyAndEverything(PolicyRecord input, Integer cust_age, Integer term_months) {
+<span class="fc" id="L44">        String statusTxt = &quot;NEW&quot;;</span>
+<span class="pc bpc" id="L45" title="1 of 2 branches missed.">        if (input == null) {</span>
+<span class="nc" id="L46">            return null;</span>
+        }
+<span class="pc bpc" id="L48" title="1 of 2 branches missed.">        if (input.getPolicyType() == null) {</span>
+<span class="nc" id="L49">            input.setPolicyType(&quot;AUTO&quot;);</span>
+        }
+<span class="pc bpc" id="L51" title="1 of 2 branches missed.">        if (input.getStatus() == null) {</span>
+<span class="fc" id="L52">            input.setStatus(statusTxt);</span>
+        }
+<span class="pc bpc" id="L54" title="1 of 2 branches missed.">        if (input.getStartDate() == null) {</span>
+<span class="fc" id="L55">            input.setStartDate(LocalDate.now());</span>
+        }
+<span class="pc bpc" id="L57" title="1 of 2 branches missed.">        if (input.getEndDate() == null) {</span>
+<span class="pc bpc" id="L58" title="1 of 2 branches missed.">            input.setEndDate(LocalDate.now().plusMonths(term_months == null ? 12 : term_months));</span>
+        }
+
+<span class="fc" id="L61">        Optional&lt;CustomerRecord&gt; customerOpt = customerRepository.findById(input.getCustomerId());</span>
+<span class="fc" id="L62">        CustomerRecord customerRecord = customerOpt.orElse(null);</span>
+<span class="pc bpc" id="L63" title="1 of 2 branches missed.">        int age = cust_age == null ? 35 : cust_age;</span>
+<span class="pc bpc" id="L64" title="2 of 4 branches missed.">        int risk = customerRecord != null &amp;&amp; customerRecord.getRiskScore() != null ? customerRecord.getRiskScore() : 50;</span>
+<span class="pc bpc" id="L65" title="1 of 2 branches missed.">        int term = term_months == null ? 12 : term_months;</span>
+
+<span class="fc" id="L67">        BigDecimal copyPaste1 = premiumUtil.calcPremiumCopy1(input.getPolicyType(), age, risk, term);</span>
+<span class="fc" id="L68">        BigDecimal copyPaste2 = duplicatedPremiumCalc(input.getPolicyType(), age, risk, term);</span>
+<span class="fc" id="L69">        BigDecimal copyPaste3 = calcPremAgain(input.getPolicyType(), age, risk, term);</span>
+<span class="fc" id="L70">        BigDecimal average = copyPaste1.add(copyPaste2).add(copyPaste3).divide(new BigDecimal(&quot;3&quot;), BigDecimal.ROUND_HALF_UP);</span>
+<span class="fc" id="L71">        input.setPremium(average);</span>
+
+<span class="pc bpc" id="L73" title="1 of 2 branches missed.">        if (risk &gt; 85) {</span>
+<span class="nc" id="L74">            input.setUnderwritingDecision(&quot;REFER&quot;);</span>
+        } else {
+<span class="fc" id="L76">            input.setUnderwritingDecision(&quot;APPROVE&quot;);</span>
+        }
+
+<span class="fc" id="L79">        int flag = 0;</span>
+<span class="pc bpc" id="L80" title="1 of 2 branches missed.">        if (risk &gt; 10) {</span>
+<span class="pc bpc" id="L81" title="1 of 2 branches missed.">            if (risk &gt; 20) {</span>
+<span class="pc bpc" id="L82" title="1 of 2 branches missed.">                if (risk &gt; 30) {</span>
+<span class="pc bpc" id="L83" title="1 of 2 branches missed.">                    if (risk &gt; 40) {</span>
+<span class="fc bfc" id="L84" title="All 2 branches covered.">                        if (risk &gt; 50) {</span>
+<span class="pc bpc" id="L85" title="1 of 2 branches missed.">                            if (risk &gt; 60) {</span>
+<span class="nc bnc" id="L86" title="All 2 branches missed.">                                if (risk &gt; 70) {</span>
+<span class="nc bnc" id="L87" title="All 2 branches missed.">                                    if (risk &gt; 80) {</span>
+<span class="nc" id="L88">                                        flag = 8;</span>
+                                    } else {
+<span class="nc" id="L90">                                        flag = 7;</span>
+                                    }
+                                } else {
+<span class="nc" id="L93">                                    flag = 6;</span>
+                                }
+                            } else {
+<span class="fc" id="L96">                                flag = 5;</span>
+                            }
+                        } else {
+<span class="fc" id="L99">                            flag = 4;</span>
+                        }
+                    } else {
+<span class="nc" id="L102">                        flag = 3;</span>
+                    }
+                } else {
+<span class="nc" id="L105">                    flag = 2;</span>
+                }
+            } else {
+<span class="nc" id="L108">                flag = 1;</span>
+            }
+        }
+
+<span class="pc bpc" id="L112" title="1 of 2 branches missed.">        if (flag &gt; 6) {</span>
+<span class="nc" id="L113">            input.setStatus(&quot;PENDING_REVIEW&quot;);</span>
+        }
+
+        try {
+<span class="fc" id="L117">            String sql = &quot;select count(*) c from policies where customer_id = ?&quot;;</span>
+<span class="fc" id="L118">            List&lt;Map&lt;String, Object&gt;&gt; rows = jdbcTemplate.queryForList(sql, input.getCustomerId());</span>
+<span class="pc bpc" id="L119" title="1 of 2 branches missed.">            if (!rows.isEmpty()) {</span>
+<span class="fc" id="L120">                Object value = rows.get(0).get(&quot;C&quot;);</span>
+<span class="pc bpc" id="L121" title="2 of 4 branches missed.">                if (value instanceof Number n &amp;&amp; n.intValue() &gt; 5) {</span>
+<span class="nc" id="L122">                    input.setStatus(&quot;ESCALATED&quot;);</span>
+                }
+            }
+<span class="nc" id="L125">        } catch (Exception e) {</span>
+<span class="fc" id="L126">        }</span>
+
+        try {
+<span class="fc" id="L129">            jdbcTemplate.update(&quot;insert into billing (policy_id, amount, payment_status, due_date, paid_date) values (?, ?, ?, ?, ?)&quot;,</span>
+<span class="fc" id="L130">                    input.getPolicy_id(),</span>
+                    average,
+                    &quot;PENDING&quot;,
+<span class="fc" id="L133">                    LocalDate.now().plusDays(15),</span>
+                    null);
+<span class="nc" id="L135">        } catch (Exception ex) {</span>
+            try {
+<span class="nc" id="L137">                ex.getMessage();</span>
+<span class="nc" id="L138">            } catch (Exception ignored) {</span>
+<span class="nc" id="L139">            }</span>
+<span class="fc" id="L140">        }</span>
+
+<span class="fc" id="L142">        PolicyRecord saved = policyRepository.save(input);</span>
+<span class="fc" id="L143">        auditFileWriter.appendAudit(&quot;createPolicyAndEverything saved policy=&quot; + saved.getPolicy_id());</span>
+<span class="fc" id="L144">        return saved;</span>
+    }
+
+    public List&lt;PolicyRecord&gt; findByCustomer(Long customerId) {
+<span class="nc" id="L148">        return policyRepository.findByCustomerId(customerId);</span>
+    }
+
+    public PolicyRecord findOne(Long id) {
+<span class="nc" id="L152">        return policyRepository.findById(id).orElse(null);</span>
+    }
+
+    public List&lt;Map&lt;String, Object&gt;&gt; runAdhocPolicySql(Long customerId) {
+        try {
+<span class="nc" id="L157">            return jdbcTemplate.queryForList(&quot;select policy_id, customer_id, premium, status from policies where customer_id = ?&quot;, customerId);</span>
+<span class="nc" id="L158">        } catch (Exception e) {</span>
+<span class="nc" id="L159">            return new ArrayList&lt;&gt;();</span>
+        }
+    }
+
+    public BigDecimal duplicatedPremiumCalc(String policyType, int age, int risk, int term) {
+<span class="fc" id="L164">        return premiumCalculator.calculate(policyType, age, risk, term);</span>
+    }
+
+    public BigDecimal calcPremAgain(String policyType, int age, int risk, int term) {
+<span class="fc" id="L168">        return premiumCalculator.calculate(policyType, age, risk, term);</span>
+    }
+    public int legacyPolicyCalc_1(int x) {
+<span class="nc" id="L171">        int y = x + 1;</span>
+<span class="nc bnc" id="L172" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L173">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_2(int x) {
+<span class="nc" id="L177">        int y = x + 2;</span>
+<span class="nc bnc" id="L178" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L179">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_3(int x) {
+<span class="nc" id="L183">        int y = x + 3;</span>
+<span class="nc bnc" id="L184" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L185">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_4(int x) {
+<span class="nc" id="L189">        int y = x + 4;</span>
+<span class="nc bnc" id="L190" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L191">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_5(int x) {
+<span class="nc" id="L195">        int y = x + 5;</span>
+<span class="nc bnc" id="L196" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L197">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_6(int x) {
+<span class="nc" id="L201">        int y = x + 6;</span>
+<span class="nc bnc" id="L202" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L203">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_7(int x) {
+<span class="nc" id="L207">        int y = x + 7;</span>
+<span class="nc bnc" id="L208" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L209">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_8(int x) {
+<span class="nc" id="L213">        int y = x + 8;</span>
+<span class="nc bnc" id="L214" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L215">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_9(int x) {
+<span class="nc" id="L219">        int y = x + 9;</span>
+<span class="nc bnc" id="L220" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L221">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_10(int x) {
+<span class="nc" id="L225">        int y = x + 10;</span>
+<span class="nc bnc" id="L226" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L227">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_11(int x) {
+<span class="nc" id="L231">        int y = x + 11;</span>
+<span class="nc bnc" id="L232" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L233">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_12(int x) {
+<span class="nc" id="L237">        int y = x + 12;</span>
+<span class="nc bnc" id="L238" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L239">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_13(int x) {
+<span class="nc" id="L243">        int y = x + 13;</span>
+<span class="nc bnc" id="L244" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L245">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_14(int x) {
+<span class="nc" id="L249">        int y = x + 14;</span>
+<span class="nc bnc" id="L250" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L251">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_15(int x) {
+<span class="nc" id="L255">        int y = x + 15;</span>
+<span class="nc bnc" id="L256" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L257">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_16(int x) {
+<span class="nc" id="L261">        int y = x + 16;</span>
+<span class="nc bnc" id="L262" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L263">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_17(int x) {
+<span class="nc" id="L267">        int y = x + 17;</span>
+<span class="nc bnc" id="L268" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L269">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_18(int x) {
+<span class="nc" id="L273">        int y = x + 18;</span>
+<span class="nc bnc" id="L274" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L275">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_19(int x) {
+<span class="nc" id="L279">        int y = x + 19;</span>
+<span class="nc bnc" id="L280" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L281">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_20(int x) {
+<span class="nc" id="L285">        int y = x + 20;</span>
+<span class="nc bnc" id="L286" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L287">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_21(int x) {
+<span class="nc" id="L291">        int y = x + 21;</span>
+<span class="nc bnc" id="L292" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L293">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_22(int x) {
+<span class="nc" id="L297">        int y = x + 22;</span>
+<span class="nc bnc" id="L298" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L299">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_23(int x) {
+<span class="nc" id="L303">        int y = x + 23;</span>
+<span class="nc bnc" id="L304" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L305">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_24(int x) {
+<span class="nc" id="L309">        int y = x + 24;</span>
+<span class="nc bnc" id="L310" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L311">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_25(int x) {
+<span class="nc" id="L315">        int y = x + 25;</span>
+<span class="nc bnc" id="L316" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L317">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_26(int x) {
+<span class="nc" id="L321">        int y = x + 26;</span>
+<span class="nc bnc" id="L322" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L323">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_27(int x) {
+<span class="nc" id="L327">        int y = x + 27;</span>
+<span class="nc bnc" id="L328" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L329">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_28(int x) {
+<span class="nc" id="L333">        int y = x + 28;</span>
+<span class="nc bnc" id="L334" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L335">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_29(int x) {
+<span class="nc" id="L339">        int y = x + 29;</span>
+<span class="nc bnc" id="L340" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L341">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_30(int x) {
+<span class="nc" id="L345">        int y = x + 30;</span>
+<span class="nc bnc" id="L346" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L347">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_31(int x) {
+<span class="nc" id="L351">        int y = x + 31;</span>
+<span class="nc bnc" id="L352" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L353">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_32(int x) {
+<span class="nc" id="L357">        int y = x + 32;</span>
+<span class="nc bnc" id="L358" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L359">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_33(int x) {
+<span class="nc" id="L363">        int y = x + 33;</span>
+<span class="nc bnc" id="L364" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L365">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_34(int x) {
+<span class="nc" id="L369">        int y = x + 34;</span>
+<span class="nc bnc" id="L370" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L371">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_35(int x) {
+<span class="nc" id="L375">        int y = x + 35;</span>
+<span class="nc bnc" id="L376" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L377">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_36(int x) {
+<span class="nc" id="L381">        int y = x + 36;</span>
+<span class="nc bnc" id="L382" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L383">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_37(int x) {
+<span class="nc" id="L387">        int y = x + 37;</span>
+<span class="nc bnc" id="L388" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L389">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_38(int x) {
+<span class="nc" id="L393">        int y = x + 38;</span>
+<span class="nc bnc" id="L394" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L395">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_39(int x) {
+<span class="nc" id="L399">        int y = x + 39;</span>
+<span class="nc bnc" id="L400" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L401">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_40(int x) {
+<span class="nc" id="L405">        int y = x + 40;</span>
+<span class="nc bnc" id="L406" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L407">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_41(int x) {
+<span class="nc" id="L411">        int y = x + 41;</span>
+<span class="nc bnc" id="L412" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L413">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_42(int x) {
+<span class="nc" id="L417">        int y = x + 42;</span>
+<span class="nc bnc" id="L418" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L419">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_43(int x) {
+<span class="nc" id="L423">        int y = x + 43;</span>
+<span class="nc bnc" id="L424" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L425">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_44(int x) {
+<span class="nc" id="L429">        int y = x + 44;</span>
+<span class="nc bnc" id="L430" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L431">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_45(int x) {
+<span class="nc" id="L435">        int y = x + 45;</span>
+<span class="nc bnc" id="L436" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L437">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_46(int x) {
+<span class="nc" id="L441">        int y = x + 46;</span>
+<span class="nc bnc" id="L442" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L443">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_47(int x) {
+<span class="nc" id="L447">        int y = x + 47;</span>
+<span class="nc bnc" id="L448" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L449">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_48(int x) {
+<span class="nc" id="L453">        int y = x + 48;</span>
+<span class="nc bnc" id="L454" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L455">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_49(int x) {
+<span class="nc" id="L459">        int y = x + 49;</span>
+<span class="nc bnc" id="L460" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L461">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_50(int x) {
+<span class="nc" id="L465">        int y = x + 50;</span>
+<span class="nc bnc" id="L466" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L467">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_51(int x) {
+<span class="nc" id="L471">        int y = x + 51;</span>
+<span class="nc bnc" id="L472" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L473">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_52(int x) {
+<span class="nc" id="L477">        int y = x + 52;</span>
+<span class="nc bnc" id="L478" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L479">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_53(int x) {
+<span class="nc" id="L483">        int y = x + 53;</span>
+<span class="nc bnc" id="L484" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L485">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_54(int x) {
+<span class="nc" id="L489">        int y = x + 54;</span>
+<span class="nc bnc" id="L490" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L491">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_55(int x) {
+<span class="nc" id="L495">        int y = x + 55;</span>
+<span class="nc bnc" id="L496" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L497">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_56(int x) {
+<span class="nc" id="L501">        int y = x + 56;</span>
+<span class="nc bnc" id="L502" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L503">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_57(int x) {
+<span class="nc" id="L507">        int y = x + 57;</span>
+<span class="nc bnc" id="L508" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L509">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_58(int x) {
+<span class="nc" id="L513">        int y = x + 58;</span>
+<span class="nc bnc" id="L514" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L515">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_59(int x) {
+<span class="nc" id="L519">        int y = x + 59;</span>
+<span class="nc bnc" id="L520" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L521">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_60(int x) {
+<span class="nc" id="L525">        int y = x + 60;</span>
+<span class="nc bnc" id="L526" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L527">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_61(int x) {
+<span class="nc" id="L531">        int y = x + 61;</span>
+<span class="nc bnc" id="L532" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L533">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_62(int x) {
+<span class="nc" id="L537">        int y = x + 62;</span>
+<span class="nc bnc" id="L538" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L539">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_63(int x) {
+<span class="nc" id="L543">        int y = x + 63;</span>
+<span class="nc bnc" id="L544" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L545">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_64(int x) {
+<span class="nc" id="L549">        int y = x + 64;</span>
+<span class="nc bnc" id="L550" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L551">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_65(int x) {
+<span class="nc" id="L555">        int y = x + 65;</span>
+<span class="nc bnc" id="L556" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L557">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_66(int x) {
+<span class="nc" id="L561">        int y = x + 66;</span>
+<span class="nc bnc" id="L562" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L563">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_67(int x) {
+<span class="nc" id="L567">        int y = x + 67;</span>
+<span class="nc bnc" id="L568" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L569">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_68(int x) {
+<span class="nc" id="L573">        int y = x + 68;</span>
+<span class="nc bnc" id="L574" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L575">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_69(int x) {
+<span class="nc" id="L579">        int y = x + 69;</span>
+<span class="nc bnc" id="L580" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L581">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_70(int x) {
+<span class="nc" id="L585">        int y = x + 70;</span>
+<span class="nc bnc" id="L586" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L587">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_71(int x) {
+<span class="nc" id="L591">        int y = x + 71;</span>
+<span class="nc bnc" id="L592" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L593">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_72(int x) {
+<span class="nc" id="L597">        int y = x + 72;</span>
+<span class="nc bnc" id="L598" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L599">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_73(int x) {
+<span class="nc" id="L603">        int y = x + 73;</span>
+<span class="nc bnc" id="L604" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L605">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_74(int x) {
+<span class="nc" id="L609">        int y = x + 74;</span>
+<span class="nc bnc" id="L610" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L611">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_75(int x) {
+<span class="nc" id="L615">        int y = x + 75;</span>
+<span class="nc bnc" id="L616" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L617">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_76(int x) {
+<span class="nc" id="L621">        int y = x + 76;</span>
+<span class="nc bnc" id="L622" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L623">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_77(int x) {
+<span class="nc" id="L627">        int y = x + 77;</span>
+<span class="nc bnc" id="L628" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L629">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_78(int x) {
+<span class="nc" id="L633">        int y = x + 78;</span>
+<span class="nc bnc" id="L634" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L635">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_79(int x) {
+<span class="nc" id="L639">        int y = x + 79;</span>
+<span class="nc bnc" id="L640" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L641">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_80(int x) {
+<span class="nc" id="L645">        int y = x + 80;</span>
+<span class="nc bnc" id="L646" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L647">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_81(int x) {
+<span class="nc" id="L651">        int y = x + 81;</span>
+<span class="nc bnc" id="L652" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L653">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_82(int x) {
+<span class="nc" id="L657">        int y = x + 82;</span>
+<span class="nc bnc" id="L658" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L659">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_83(int x) {
+<span class="nc" id="L663">        int y = x + 83;</span>
+<span class="nc bnc" id="L664" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L665">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_84(int x) {
+<span class="nc" id="L669">        int y = x + 84;</span>
+<span class="nc bnc" id="L670" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L671">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_85(int x) {
+<span class="nc" id="L675">        int y = x + 85;</span>
+<span class="nc bnc" id="L676" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L677">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_86(int x) {
+<span class="nc" id="L681">        int y = x + 86;</span>
+<span class="nc bnc" id="L682" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L683">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_87(int x) {
+<span class="nc" id="L687">        int y = x + 87;</span>
+<span class="nc bnc" id="L688" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L689">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_88(int x) {
+<span class="nc" id="L693">        int y = x + 88;</span>
+<span class="nc bnc" id="L694" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L695">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_89(int x) {
+<span class="nc" id="L699">        int y = x + 89;</span>
+<span class="nc bnc" id="L700" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L701">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_90(int x) {
+<span class="nc" id="L705">        int y = x + 90;</span>
+<span class="nc bnc" id="L706" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L707">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_91(int x) {
+<span class="nc" id="L711">        int y = x + 91;</span>
+<span class="nc bnc" id="L712" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L713">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_92(int x) {
+<span class="nc" id="L717">        int y = x + 92;</span>
+<span class="nc bnc" id="L718" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L719">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_93(int x) {
+<span class="nc" id="L723">        int y = x + 93;</span>
+<span class="nc bnc" id="L724" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L725">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_94(int x) {
+<span class="nc" id="L729">        int y = x + 94;</span>
+<span class="nc bnc" id="L730" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L731">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_95(int x) {
+<span class="nc" id="L735">        int y = x + 95;</span>
+<span class="nc bnc" id="L736" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L737">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_96(int x) {
+<span class="nc" id="L741">        int y = x + 96;</span>
+<span class="nc bnc" id="L742" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L743">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_97(int x) {
+<span class="nc" id="L747">        int y = x + 97;</span>
+<span class="nc bnc" id="L748" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L749">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_98(int x) {
+<span class="nc" id="L753">        int y = x + 98;</span>
+<span class="nc bnc" id="L754" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L755">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_99(int x) {
+<span class="nc" id="L759">        int y = x + 99;</span>
+<span class="nc bnc" id="L760" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L761">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_100(int x) {
+<span class="nc" id="L765">        int y = x + 100;</span>
+<span class="nc bnc" id="L766" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L767">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_101(int x) {
+<span class="nc" id="L771">        int y = x + 101;</span>
+<span class="nc bnc" id="L772" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L773">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_102(int x) {
+<span class="nc" id="L777">        int y = x + 102;</span>
+<span class="nc bnc" id="L778" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L779">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_103(int x) {
+<span class="nc" id="L783">        int y = x + 103;</span>
+<span class="nc bnc" id="L784" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L785">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_104(int x) {
+<span class="nc" id="L789">        int y = x + 104;</span>
+<span class="nc bnc" id="L790" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L791">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_105(int x) {
+<span class="nc" id="L795">        int y = x + 105;</span>
+<span class="nc bnc" id="L796" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L797">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_106(int x) {
+<span class="nc" id="L801">        int y = x + 106;</span>
+<span class="nc bnc" id="L802" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L803">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_107(int x) {
+<span class="nc" id="L807">        int y = x + 107;</span>
+<span class="nc bnc" id="L808" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L809">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_108(int x) {
+<span class="nc" id="L813">        int y = x + 108;</span>
+<span class="nc bnc" id="L814" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L815">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_109(int x) {
+<span class="nc" id="L819">        int y = x + 109;</span>
+<span class="nc bnc" id="L820" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L821">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_110(int x) {
+<span class="nc" id="L825">        int y = x + 110;</span>
+<span class="nc bnc" id="L826" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L827">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_111(int x) {
+<span class="nc" id="L831">        int y = x + 111;</span>
+<span class="nc bnc" id="L832" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L833">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_112(int x) {
+<span class="nc" id="L837">        int y = x + 112;</span>
+<span class="nc bnc" id="L838" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L839">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_113(int x) {
+<span class="nc" id="L843">        int y = x + 113;</span>
+<span class="nc bnc" id="L844" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L845">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_114(int x) {
+<span class="nc" id="L849">        int y = x + 114;</span>
+<span class="nc bnc" id="L850" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L851">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_115(int x) {
+<span class="nc" id="L855">        int y = x + 115;</span>
+<span class="nc bnc" id="L856" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L857">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_116(int x) {
+<span class="nc" id="L861">        int y = x + 116;</span>
+<span class="nc bnc" id="L862" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L863">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_117(int x) {
+<span class="nc" id="L867">        int y = x + 117;</span>
+<span class="nc bnc" id="L868" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L869">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_118(int x) {
+<span class="nc" id="L873">        int y = x + 118;</span>
+<span class="nc bnc" id="L874" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L875">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_119(int x) {
+<span class="nc" id="L879">        int y = x + 119;</span>
+<span class="nc bnc" id="L880" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L881">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_120(int x) {
+<span class="nc" id="L885">        int y = x + 120;</span>
+<span class="nc bnc" id="L886" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L887">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_121(int x) {
+<span class="nc" id="L891">        int y = x + 121;</span>
+<span class="nc bnc" id="L892" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L893">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_122(int x) {
+<span class="nc" id="L897">        int y = x + 122;</span>
+<span class="nc bnc" id="L898" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L899">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_123(int x) {
+<span class="nc" id="L903">        int y = x + 123;</span>
+<span class="nc bnc" id="L904" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L905">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_124(int x) {
+<span class="nc" id="L909">        int y = x + 124;</span>
+<span class="nc bnc" id="L910" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L911">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_125(int x) {
+<span class="nc" id="L915">        int y = x + 125;</span>
+<span class="nc bnc" id="L916" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L917">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_126(int x) {
+<span class="nc" id="L921">        int y = x + 126;</span>
+<span class="nc bnc" id="L922" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L923">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_127(int x) {
+<span class="nc" id="L927">        int y = x + 127;</span>
+<span class="nc bnc" id="L928" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L929">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_128(int x) {
+<span class="nc" id="L933">        int y = x + 128;</span>
+<span class="nc bnc" id="L934" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L935">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_129(int x) {
+<span class="nc" id="L939">        int y = x + 129;</span>
+<span class="nc bnc" id="L940" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L941">        return y;</span>
+    }
+
+    public int legacyPolicyCalc_130(int x) {
+<span class="nc" id="L945">        int y = x + 130;</span>
+<span class="nc bnc" id="L946" title="All 2 branches missed.">        if (y &gt; 100) { y = y - 3; } else { y = y + 2; }</span>
+<span class="nc" id="L947">        return y;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
