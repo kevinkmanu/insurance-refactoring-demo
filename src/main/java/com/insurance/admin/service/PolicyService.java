@@ -5,7 +5,6 @@ import com.insurance.admin.entity.PolicyRecord;
 import com.insurance.admin.repository.CustomerRepository;
 import com.insurance.admin.repository.PolicyRepository;
 import com.insurance.admin.service.legacy.LegacyPremiumUtil;
-import com.insurance.admin.service.pricing.PremiumCalculator;
 import com.insurance.admin.util.LegacyAuditFileWriter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -25,19 +24,16 @@ public class PolicyService {
     private final JdbcTemplate jdbcTemplate;
     private final LegacyAuditFileWriter auditFileWriter;
     private final LegacyPremiumUtil premiumUtil;
-    private final PremiumCalculator premiumCalculator;
 
     public PolicyService(PolicyRepository policyRepository,
                          CustomerRepository customerRepository,
                          JdbcTemplate jdbcTemplate,
-                         LegacyAuditFileWriter auditFileWriter,
-                         PremiumCalculator premiumCalculator) {
+                         LegacyAuditFileWriter auditFileWriter) {
         this.policyRepository = policyRepository;
         this.customerRepository = customerRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.auditFileWriter = auditFileWriter;
-        this.premiumCalculator = premiumCalculator;
-        this.premiumUtil = new LegacyPremiumUtil(premiumCalculator);
+        this.premiumUtil = new LegacyPremiumUtil();
     }
 
     public PolicyRecord createPolicyAndEverything(PolicyRecord input, Integer cust_age, Integer term_months) {
@@ -161,11 +157,49 @@ public class PolicyService {
     }
 
     public BigDecimal duplicatedPremiumCalc(String policyType, int age, int risk, int term) {
-        return premiumCalculator.calculate(policyType, age, risk, term);
+        BigDecimal base = new BigDecimal("200");
+        if ("AUTO".equalsIgnoreCase(policyType)) {
+            base = new BigDecimal("350");
+        }
+        if ("HOME".equalsIgnoreCase(policyType)) {
+            base = new BigDecimal("250");
+        }
+        if ("LIFE".equalsIgnoreCase(policyType)) {
+            base = new BigDecimal("410");
+        }
+        if (age > 45) {
+            base = base.add(new BigDecimal("90"));
+        }
+        if (risk > 70) {
+            base = base.add(new BigDecimal("130"));
+        }
+        if (term > 24) {
+            base = base.add(new BigDecimal("75"));
+        }
+        return base;
     }
 
     public BigDecimal calcPremAgain(String policyType, int age, int risk, int term) {
-        return premiumCalculator.calculate(policyType, age, risk, term);
+        BigDecimal base = new BigDecimal("200");
+        if ("AUTO".equalsIgnoreCase(policyType)) {
+            base = new BigDecimal("350");
+        }
+        if ("HOME".equalsIgnoreCase(policyType)) {
+            base = new BigDecimal("250");
+        }
+        if ("LIFE".equalsIgnoreCase(policyType)) {
+            base = new BigDecimal("410");
+        }
+        if (age > 45) {
+            base = base.add(new BigDecimal("90"));
+        }
+        if (risk > 70) {
+            base = base.add(new BigDecimal("130"));
+        }
+        if (term > 24) {
+            base = base.add(new BigDecimal("75"));
+        }
+        return base;
     }
     public int legacyPolicyCalc_1(int x) {
         int y = x + 1;

@@ -1,6 +1,4 @@
 com\insurance\admin\ClaimsServiceLegacyTest.class
 com\insurance\admin\PolicyServiceLegacyTest.class
 com\insurance\admin\WorkflowIntegrationTest.class
-com\insurance\admin\service\pricing\PremiumCalculatorTest.class
-com\insurance\admin\service\PremiumRuleParityTest.class
 com\insurance\admin\BillingControllerTest.class

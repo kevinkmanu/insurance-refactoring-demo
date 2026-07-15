@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.insurance.admin.BillingControllerTest
 -------------------------------------------------------------------------------
-Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 18.26 s -- in com.insurance.admin.BillingControllerTest
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 24.15 s -- in com.insurance.admin.BillingControllerTest

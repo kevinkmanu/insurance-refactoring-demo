@@ -12,7 +12,6 @@ com\insurance\admin\repository\CustomerRepository.class
 com\insurance\admin\repository\PolicyRepository.class
 com\insurance\admin\service\CustomerService.class
 com\insurance\admin\service\ClaimsService.class
-com\insurance\admin\service\pricing\PremiumCalculator.class
 com\insurance\admin\service\legacy\LegacyPremiumUtil.class
 com\insurance\admin\entity\BillingRecord.class
 com\insurance\admin\entity\CustomerRecord.class
