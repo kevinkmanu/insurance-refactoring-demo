@@ -28,3 +28,5 @@ createPolicyAndEverything saved policy=2
 createPolicyAndEverything saved policy=1
 submitClaimAndDoEverything claim=1, status=APPROVED
 createPolicyAndEverything saved policy=2
+createPolicyAndEverything saved policy=1
+submitClaimAndDoEverything claim=1, status=APPROVED
