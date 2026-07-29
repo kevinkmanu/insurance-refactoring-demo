@@ -22,6 +22,16 @@ mvn spring-boot:run
 mvn clean test
 ```
 
+## GitHub Actions
+
+The repository uses GitHub Actions for application CI/CD:
+
+- `application-ci.yml` runs on pull requests to `main`, pushes to `main`, and manual dispatch. It builds with Java 17, runs `mvn clean verify`, and uploads Surefire and JaCoCo reports plus the packaged JAR.
+- `application-dependency-review.yml` runs on pull requests to `main` and fails on newly introduced high-severity dependency issues.
+- `application-release.yml` runs on semantic version tags like `v1.0.0`, rebuilds the tagged commit, and publishes the executable JAR to a GitHub Release.
+
+JaCoCo is reported by CI, but coverage is not enforced yet.
+
 ## Beginning of Demo: POST Request Examples
 Run these at the start of your demo to show endpoints working before refactoring, then run the same requests after refactoring to prove behavior parity.
 
