@@ -21,17 +21,18 @@ jobs:
         id: dep-graph-check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
         run: |
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
           if gh api \
             --header "Accept: application/vnd.github+json" \
             --header "X-GitHub-Api-Version: 2022-11-28" \
-            "repos/${{ github.repository }}/dependency-graph/compare/${BASE_SHA}...${HEAD_SHA}" \
+            "repos/${REPO}/dependency-graph/compare/${BASE_SHA}...${HEAD_SHA}" \
             > /dev/null 2>&1; then
             echo "supported=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning title=Dependency Graph Disabled::Dependency review is not supported because the Dependency Graph is not enabled for this repository. Enable it at https://github.com/${{ github.repository }}/settings/security_analysis and re-run this workflow."
+            echo "::warning title=Dependency Graph Disabled::Dependency review is not supported because the Dependency Graph is not enabled for this repository. Enable it at https://github.com/${REPO}/settings/security_analysis and re-run this workflow."
             echo "supported=false" >> "$GITHUB_OUTPUT"
           fi
 
