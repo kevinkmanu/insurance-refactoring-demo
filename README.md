@@ -29,6 +29,7 @@ The repository uses GitHub Actions for application CI/CD:
 - `application-ci.yml` runs on pull requests to `main`, pushes to `main`, and manual dispatch. It builds with Java 17, runs `mvn clean verify`, and uploads Surefire and JaCoCo reports plus the packaged JAR.
 - `application-dependency-review.yml` runs on pull requests to `main` and fails on newly introduced high-severity dependency issues.
 - `application-release.yml` runs on semantic version tags like `v1.0.0`, rebuilds the tagged commit, and publishes the executable JAR to a GitHub Release.
+- `application-codeql.yml` runs CodeQL static security analysis on pull requests to `main`, pushes to `main`, and weekly (Mondays 08:00 UTC). Results appear in the repository Security tab.
 
 JaCoCo is reported by CI, but coverage is not enforced yet.
 
