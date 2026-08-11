@@ -29,4 +29,8 @@ public class BillingService {
     public List<BillingRecord> findByPolicyId(Long policyId) {
         return billingRepository.findByPolicyId(policyId);
     }
+
+    public List<BillingRecord> findAll() {
+        return billingRepository.findAll();
+    }
 }

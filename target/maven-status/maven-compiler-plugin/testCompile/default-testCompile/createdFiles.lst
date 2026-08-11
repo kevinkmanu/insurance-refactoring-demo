@@ -1,4 +1,5 @@
 com\insurance\admin\ClaimsServiceLegacyTest.class
+com\insurance\admin\WorklistEndpointsTest.class
 com\insurance\admin\PolicyServiceLegacyTest.class
 com\insurance\admin\WorkflowIntegrationTest.class
 com\insurance\admin\BillingControllerTest.class

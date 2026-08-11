@@ -77,14 +77,17 @@ $underwriting
   - `GET /api/customers/{id}`
 - Policies
   - `POST /api/policies?age=42&termMonths=12`
+  - `GET /api/policies`
   - `GET /api/policies/{id}`
   - `GET /api/policies/customer/{customerId}`
 - Claims
   - `POST /api/claims?adjuster=alex&docs=3`
+  - `GET /api/claims`
   - `POST /api/claims/{id}/approve?force=false`
   - `GET /api/claims/policy/{policyId}`
 - Billing
   - `POST /api/billing/payment`
+  - `GET /api/billing`
   - `GET /api/billing/policy/{policyId}`
 - Underwriting
   - `POST /api/underwriting/decision?customerId=1&policyType=AUTO`
@@ -178,3 +181,4 @@ docs/
 ## Additional Docs
 - `docs/architecture-and-debt.md`
 - `docs/refactoring-plan.md`
+- `docs/enterprise-ui-plan.md`

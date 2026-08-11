@@ -144,6 +144,10 @@ public class PolicyService {
         return policyRepository.findByCustomerId(customerId);
     }
 
+    public List<PolicyRecord> findAll() {
+        return policyRepository.findAll();
+    }
+
     public PolicyRecord findOne(Long id) {
         return policyRepository.findById(id).orElse(null);
     }

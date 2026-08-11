@@ -1,0 +1,12 @@
+﻿.breadcrumbs { padding: 0; }
+.breadcrumbs__list { list-style: none; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.breadcrumbs__item { display: flex; align-items: center; gap: 4px; }
+.breadcrumbs__link {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+.breadcrumbs__link:hover { color: var(--color-primary); }
+.breadcrumbs__current { font-size: 13px; color: var(--color-text); font-weight: 600; }
+.breadcrumbs__sep { font-size: 12px; color: var(--color-text-subtle); }

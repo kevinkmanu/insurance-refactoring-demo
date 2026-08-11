@@ -21,6 +21,11 @@ public class BillingController {
         return billingService.processPayment(billingRecord);
     }
 
+    @GetMapping
+    public List<BillingRecord> all() {
+        return billingService.findAll();
+    }
+
     @GetMapping("/policy/{policyId}")
     public List<BillingRecord> byPolicy(@PathVariable Long policyId) {
         return billingService.findByPolicyId(policyId);
