@@ -1,0 +1,152 @@
+.topbar {
+  position: fixed;
+  top: 0;
+  left: var(--sidebar-width);
+  right: 0;
+  height: var(--topbar-height);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  z-index: 90;
+  gap: 16px;
+  transition: left var(--transition-normal);
+}
+.topbar--collapsed { left: var(--sidebar-collapsed-w); }
+
+.topbar__left  { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.topbar__right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+
+.topbar__menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: var(--color-text-muted);
+  padding: 4px;
+  border-radius: var(--radius-sm);
+}
+@media (max-width: 768px) {
+  .topbar { left: 0; }
+  .topbar__menu-btn { display: flex; }
+}
+
+/* Search */
+.topbar__search { position: relative; display: flex; align-items: center; }
+.topbar__search-icon { position: absolute; left: 10px; font-size: 13px; pointer-events: none; }
+.topbar__search-input {
+  padding: 7px 12px 7px 30px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-text);
+  width: 240px;
+  transition: border-color var(--transition-fast), width var(--transition-normal);
+}
+.topbar__search-input:focus { border-color: var(--color-primary); outline: none; width: 320px; }
+@media (max-width: 640px) {
+  .topbar__search { display: none; }
+}
+
+/* Icon buttons */
+.topbar__icon-btn {
+  position: relative;
+  background: none;
+  border: none;
+  font-size: 18px;
+  padding: 6px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  line-height: 1;
+}
+.topbar__icon-btn:hover { background: var(--color-neutral-bg); }
+.topbar__badge {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  background: var(--color-danger);
+  color: #fff;
+  border-radius: 99px;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  line-height: 1.4;
+}
+
+/* Avatar */
+.topbar__avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
+  border: none;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  cursor: pointer;
+}
+.topbar__avatar:hover { background: var(--color-primary-hover); }
+
+/* Dropdown */
+.topbar__dropdown { position: relative; }
+.topbar__dropdown-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  min-width: 220px;
+  z-index: 200;
+  overflow: hidden;
+  animation: dropdown-in 150ms ease;
+}
+.topbar__dropdown-panel--right { left: auto; right: 0; }
+@keyframes dropdown-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+.topbar__dropdown-heading {
+  padding: 10px 14px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--color-text-subtle);
+  border-bottom: 1px solid var(--color-border);
+}
+.topbar__notif-item, .topbar__menu-item {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-text);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  cursor: pointer;
+}
+.topbar__notif-item:last-child, .topbar__menu-item:last-child { border-bottom: none; }
+.topbar__notif-item:hover, .topbar__menu-item:hover { background: var(--color-neutral-bg); }
+.topbar__notif-item:focus-visible, .topbar__menu-item:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+.topbar__menu-item--danger { color: var(--color-danger); }
+.topbar__menu-item--danger:hover { background: var(--color-danger-bg); }
+.topbar__icon-btn:focus-visible, .topbar__avatar:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Accessibility utility */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}

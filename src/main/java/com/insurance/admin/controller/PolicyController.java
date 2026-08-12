@@ -33,6 +33,11 @@ public class PolicyController {
         return created;
     }
 
+    @GetMapping
+    public List<PolicyRecord> all() {
+        return policyService.findAll();
+    }
+
     @GetMapping("/{id}")
     public PolicyRecord findOne(@PathVariable Long id) {
         return policyService.findOne(id);

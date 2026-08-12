@@ -30,6 +30,11 @@ public class ClaimsController {
         return claimsService.submitClaimAndDoEverything(claimRecord, adjuster, docs);
     }
 
+    @GetMapping
+    public List<ClaimRecord> all() {
+        return claimsService.findAll();
+    }
+
     @PostMapping("/{id}/approve")
     public ClaimRecord approve(@PathVariable Long id, @RequestParam(defaultValue = "false") boolean force) {
         return claimsService.processApproval(id, force);

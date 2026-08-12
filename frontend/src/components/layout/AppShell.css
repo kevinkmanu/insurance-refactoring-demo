@@ -1,0 +1,39 @@
+﻿.app-shell { display: flex; min-height: 100svh; }
+
+.app-shell__main {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  transition: margin-left var(--transition-normal);
+  min-width: 0;
+}
+.app-shell--collapsed .app-shell__main { margin-left: var(--sidebar-collapsed-w); }
+
+.app-shell__content {
+  padding: calc(var(--topbar-height) + 24px) 24px 32px;
+  min-height: 100svh;
+}
+
+/* Mobile backdrop overlay */
+.app-shell__overlay {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .app-shell__main { margin-left: 0; }
+  .app-shell__content { padding: calc(var(--topbar-height) + 16px) 16px 24px; }
+
+  .app-shell__overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 99;
+    cursor: pointer;
+    animation: overlay-in 200ms ease;
+  }
+}
+
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}

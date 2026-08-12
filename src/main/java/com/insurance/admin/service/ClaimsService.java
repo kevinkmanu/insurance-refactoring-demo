@@ -138,6 +138,10 @@ public class ClaimsService {
         return claimRepository.findByPolicyId(policyId);
     }
 
+    public List<ClaimRecord> findAll() {
+        return claimRepository.findAll();
+    }
+
     public List<Map<String, Object>> runAdhocClaimSql(Long policyId) {
         try {
             return jdbcTemplate.queryForList("select id, policy_id, claim_amount, status from claims where policy_id = ?", policyId);
