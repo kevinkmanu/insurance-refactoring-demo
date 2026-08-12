@@ -188,7 +188,7 @@ Replace static screens with functional enterprise workflows:
 
 ## Phase 5 — Cross-Cutting Reliability and UX
 
-**Status: Planned**
+**Status: Complete**
 
 - Add React error boundaries and fallback UI.
 - Add global toast notifications for mutation outcomes.
@@ -200,7 +200,7 @@ Replace static screens with functional enterprise workflows:
 
 ## Phase 6 — Frontend Testing
 
-**Status: Planned**
+**Status: Complete**
 
 Add frontend test tooling and coverage:
 
@@ -229,7 +229,7 @@ npm run build
 
 ## Phase 7 — Documentation and Delivery
 
-**Status: Planned**
+**Status: Complete**
 
 - Add `frontend/README.md` with setup, scripts, architecture, and troubleshooting.
 - Update root README with:

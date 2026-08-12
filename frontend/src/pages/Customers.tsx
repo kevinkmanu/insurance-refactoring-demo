@@ -9,15 +9,16 @@ import { FormField } from '../components/ui/FormField';
 import { Modal } from '../components/ui/Modal';
 import { SkeletonRows } from '../components/ui/SkeletonLoader';
 import { useToast } from '../components/ui/useToast';
-import { ToastContainer } from '../components/ui/Toast';
+import { getErrorMessage } from '../api/apiClient';
 import { riskLabel } from './featureUtils';
 import './feature.css';
 
-function CustomerForm({ initial, onCancel, onSave, busy }: { initial?: Customer; onCancel: () => void; onSave: (customer: Customer) => void; busy: boolean }) {
+function CustomerForm({ initial, onCancel, onSave, busy, error }: { initial?: Customer; onCancel: () => void; onSave: (customer: Customer) => void; busy: boolean; error?: string }) {
   const [form, setForm] = useState<Customer>(initial ?? { name: '', email: '', phone: '', address: '', riskScore: 50 });
   const update = (key: keyof Customer, value: string) => setForm((current) => ({ ...current, [key]: key === 'riskScore' ? Number(value) : value }));
   return (
     <form className="feature-form" onSubmit={(event) => { event.preventDefault(); onSave(form); }}>
+      {error && <div className="form-error" role="alert">{error}</div>}
       <div className="feature-form__grid">
         <FormField id="customer-name" label="Full name" value={form.name} onChange={(e) => update('name', e.target.value)} required />
         <FormField id="customer-email" label="Email" type="email" value={form.email} onChange={(e) => update('email', e.target.value)} required />
@@ -48,7 +49,7 @@ function CustomerDetail({ customer, onEdit }: { customer: Customer; onEdit: () =
           <div className="feature-form__actions"><button className="button button--primary" onClick={onEdit}>Edit customer</button></div>
         </Card>
         <Card title="Linked policies">
-          {policies.isLoading ? <SkeletonRows /> : policies.data?.length ? (
+          {policies.isLoading ? <SkeletonRows /> : policies.isError ? <EmptyState icon="⚠️" title="Policies unavailable" description={getErrorMessage(policies.error)} /> : policies.data?.length ? (
             <DataTable
               rows={policies.data}
               rowKey={(row) => String(row.id)}
@@ -59,7 +60,7 @@ function CustomerDetail({ customer, onEdit }: { customer: Customer; onEdit: () =
                 { key: 'premium', header: 'Premium', render: (value) => `$${Number(value).toFixed(2)}` },
               ]}
             />
-          ) : <div className="feature-empty">No policies are linked to this customer.</div>}
+          ) : <EmptyState title="No linked policies" description="Policies connected to this customer will appear here." />}
         </Card>
       </div>
       <Card title="Risk profile">
@@ -71,10 +72,10 @@ function CustomerDetail({ customer, onEdit }: { customer: Customer; onEdit: () =
 }
 
 export function Customers() {
-  const { data: customers, isLoading, isError } = useCustomers();
+  const { data: customers, isLoading, isError, error } = useCustomers();
   const createCustomer = useCreateCustomer();
   const updateCustomer = useUpdateCustomer();
-  const { toasts, push, dismiss } = useToast();
+  const { push } = useToast();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<Customer>();
@@ -83,7 +84,7 @@ export function Customers() {
   const filtered = useMemo(() => (customers ?? []).filter((customer) => `${customer.name} ${customer.email} ${customer.phone}`.toLowerCase().includes(query.toLowerCase())), [customers, query]);
   const save = (customer: Customer) => {
     const request = customer.id ? updateCustomer.mutateAsync({ id: customer.id, customer }) : createCustomer.mutateAsync(customer);
-    void request.then((saved) => { setFormOpen(false); setEditing(undefined); setSelected(saved); push('Customer saved successfully.', 'success'); }).catch(() => push('Unable to save customer.', 'danger'));
+    void request.then((saved) => { setFormOpen(false); setEditing(undefined); setSelected(saved); push('Customer saved successfully.', 'success'); }).catch((error: unknown) => push(getErrorMessage(error, 'Unable to save customer.'), 'danger'));
   };
   const columns: Column<Customer>[] = [
     { key: 'name', header: 'Customer', render: (value, row) => <button className="button button--small" onClick={() => { setSelected(row); navigate(`/customers/${row.id}`); }}>{String(value)}</button> },
@@ -94,14 +95,13 @@ export function Customers() {
   ];
   return (
     <div className="feature-page">
-      <ToastContainer toasts={toasts} onDismiss={dismiss} />
       <header className="feature-header"><div><h1 className="feature-title">Customers</h1><p className="feature-subtitle">Search customer records, assess risk, and manage coverage relationships.</p></div><button className="button button--primary" onClick={() => { setEditing(undefined); setFormOpen(true); }}>Add customer</button></header>
       {selected && <CustomerDetail customer={selected} onEdit={() => { setEditing(selected); setFormOpen(true); }} />}
       <Card title="Customer directory">
         <div className="toolbar"><div className="toolbar__field toolbar__search"><label htmlFor="customer-search">Search</label><input id="customer-search" placeholder="Name, email, or phone" value={query} onChange={(e) => setQuery(e.target.value)} /></div><span className="feature-muted">{filtered.length} customers</span></div>
-        {isLoading ? <SkeletonRows rows={6} /> : isError ? <EmptyState icon="⚠️" title="Customers unavailable" description="Check the API connection and try again." /> : filtered.length ? <DataTable rows={filtered} rowKey={(row) => String(row.id)} columns={columns} caption="Customer directory" /> : <EmptyState icon="👥" title="No matching customers" description="Try a different search or add a new customer." />}
+        {isLoading ? <SkeletonRows rows={6} /> : isError ? <EmptyState icon="⚠️" title="Customers unavailable" description={getErrorMessage(error, 'Check the API connection and try again.')} /> : filtered.length ? <DataTable rows={filtered} rowKey={(row) => String(row.id)} columns={columns} caption="Customer directory" /> : <EmptyState icon="👥" title="No matching customers" description="Try a different search or add a new customer." />}
       </Card>
-      <Modal isOpen={formOpen} onClose={() => setFormOpen(false)} title={editing ? 'Edit customer' : 'Add customer'}><CustomerForm initial={editing} onCancel={() => setFormOpen(false)} onSave={save} busy={createCustomer.isPending || updateCustomer.isPending} /></Modal>
+      <Modal isOpen={formOpen} onClose={() => setFormOpen(false)} title={editing ? 'Edit customer' : 'Add customer'}><CustomerForm initial={editing} onCancel={() => setFormOpen(false)} onSave={save} busy={createCustomer.isPending || updateCustomer.isPending} error={getErrorMessage(createCustomer.error ?? updateCustomer.error, '') || undefined} /></Modal>
     </div>
   );
 }
@@ -112,9 +112,9 @@ export function CustomerDetailPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Customer>();
   const updateCustomer = useUpdateCustomer();
-  const { toasts, push, dismiss } = useToast();
+  const { push } = useToast();
   if (customer.isLoading) return <SkeletonRows />;
-  if (customer.isError || !customer.data) return <EmptyState title="Customer not found" description="The requested customer could not be loaded." />;
-  const save = (updated: Customer) => void updateCustomer.mutateAsync({ id: Number(id), customer: updated }).then(() => { setFormOpen(false); push('Customer updated successfully.', 'success'); }).catch(() => push('Unable to update customer.', 'danger'));
-  return <div className="feature-page"><ToastContainer toasts={toasts} onDismiss={dismiss} /><header className="feature-header"><div><h1 className="feature-title">{customer.data.name}</h1><p className="feature-subtitle">Customer profile and linked coverage.</p></div><Link className="button" to="/customers">Back to customers</Link></header><CustomerDetail customer={customer.data} onEdit={() => { setEditing(customer.data); setFormOpen(true); }} /><Modal isOpen={formOpen} onClose={() => setFormOpen(false)} title="Edit customer"><CustomerForm initial={editing} onCancel={() => setFormOpen(false)} onSave={save} busy={updateCustomer.isPending} /></Modal></div>;
+  if (customer.isError || !customer.data) return <EmptyState title="Customer not found" description={getErrorMessage(customer.error, 'The requested customer could not be loaded.')} />;
+  const save = (updated: Customer) => void updateCustomer.mutateAsync({ id: Number(id), customer: updated }).then(() => { setFormOpen(false); push('Customer updated successfully.', 'success'); }).catch((error: unknown) => push(getErrorMessage(error, 'Unable to update customer.'), 'danger'));
+  return <div className="feature-page"><header className="feature-header"><div><h1 className="feature-title">{customer.data.name}</h1><p className="feature-subtitle">Customer profile and linked coverage.</p></div><Link className="button" to="/customers">Back to customers</Link></header><CustomerDetail customer={customer.data} onEdit={() => { setEditing(customer.data); setFormOpen(true); }} /><Modal isOpen={formOpen} onClose={() => setFormOpen(false)} title="Edit customer"><CustomerForm initial={editing} onCancel={() => setFormOpen(false)} onSave={save} busy={updateCustomer.isPending} error={getErrorMessage(updateCustomer.error, '') || undefined} /></Modal></div>;
 }

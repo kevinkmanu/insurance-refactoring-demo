@@ -5,6 +5,24 @@ Java/Spring Boot demo repository intentionally designed as a realistic legacy co
 ## Goal
 This code is intentionally messy. It compiles, runs, and has a baseline test suite, but includes anti-patterns and technical debt for refactoring demonstrations.
 
+## Enterprise administration UI
+
+The standalone React application in `frontend/` provides an enterprise
+worklist UI over the existing Spring Boot API. It covers the operational
+customer → policy → claim → billing → underwriting workflow while preserving
+the backend's routes, payload fields, and legacy behavior.
+
+### Feature map
+
+| UI area | Purpose |
+| --- | --- |
+| Dashboard | Cross-domain KPIs, recent claim activity, and outstanding premium |
+| Customers | Search, create, edit, risk-score display, and linked policies |
+| Policies | Type/status worklist, policy wizard, and linked claims/billing |
+| Claims | Adjuster queue, claim intake, status filtering, and approval |
+| Billing | Payment history, outstanding balances, and payment recording |
+| Underwriting | Explicit decision workbench and referral queue |
+
 ## Stack
 - Java 17
 - Spring Boot 3.3.x
@@ -12,15 +30,101 @@ This code is intentionally messy. It compiles, runs, and has a baseline test sui
 - H2 in-memory database
 - JUnit 5
 
-## Run
+## Local development: two processes
+
+The backend and UI run independently. Start them in separate terminals:
+
+**Terminal 1 — backend**
+
 ```bash
 mvn spring-boot:run
 ```
 
-## Test
+The API listens on `http://localhost:8080` and uses an in-memory H2 database.
+
+**Terminal 2 — frontend**
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`. Vite proxies `/api` requests to the backend;
+the proxy is a development-only convenience and the UI is not packaged into
+the Spring Boot JAR in this phase.
+
+## Validation
+
+Backend tests:
+
 ```bash
 mvn clean test
 ```
+
+Frontend checks:
+
+```powershell
+cd frontend
+npm run test
+npm run lint
+npm run build
+```
+
+## API and worklist endpoints
+
+The UI consumes the existing CRUD routes plus these additive collection
+routes used by worklists:
+
+- `GET /api/policies`
+- `GET /api/claims`
+- `GET /api/billing`
+
+Available routes:
+
+- Customers
+  - `POST /api/customers`
+  - `GET /api/customers`
+  - `PUT /api/customers/{id}`
+  - `GET /api/customers/{id}`
+- Policies
+  - `POST /api/policies?age=42&termMonths=12`
+  - `GET /api/policies` *(worklist)*
+  - `GET /api/policies/{id}`
+  - `GET /api/policies/customer/{customerId}`
+- Claims
+  - `POST /api/claims?adjuster=alex&docs=3`
+  - `GET /api/claims` *(worklist)*
+  - `POST /api/claims/{id}/approve?force=false`
+  - `GET /api/claims/policy/{policyId}`
+- Billing
+  - `POST /api/billing/payment`
+  - `GET /api/billing` *(worklist)*
+  - `GET /api/billing/policy/{policyId}`
+- Underwriting
+  - `POST /api/underwriting/decision?customerId=1&policyType=AUTO`
+
+The `/sql/{id}` diagnostic routes remain available for the legacy demo but
+are not used by the UI.
+
+### Legacy-to-domain mapping boundary
+
+The backend wire contract remains authoritative. The frontend API modules
+define wire DTOs and map them into clean domain models before rendering:
+
+| Backend field | Frontend field |
+| --- | --- |
+| `custNm` | `name` |
+| `phone_no` | `phone` |
+| `policy_id` | `id` |
+| Decimal values serialized by Jackson | numeric domain amounts |
+
+Outbound requests map back to the original names. This boundary lets the UI
+use consistent vocabulary without renaming entities, changing response
+shapes, or breaking existing API clients.
+
+The detailed frontend setup, architecture, scripts, and troubleshooting guide
+is in [`frontend/README.md`](frontend/README.md).
 
 ## GitHub Actions
 
@@ -69,28 +173,6 @@ $claim
 $billing
 $underwriting
 ```
-
-## API Endpoints
-- Customers
-  - `POST /api/customers`
-  - `PUT /api/customers/{id}`
-  - `GET /api/customers/{id}`
-- Policies
-  - `POST /api/policies?age=42&termMonths=12`
-  - `GET /api/policies`
-  - `GET /api/policies/{id}`
-  - `GET /api/policies/customer/{customerId}`
-- Claims
-  - `POST /api/claims?adjuster=alex&docs=3`
-  - `GET /api/claims`
-  - `POST /api/claims/{id}/approve?force=false`
-  - `GET /api/claims/policy/{policyId}`
-- Billing
-  - `POST /api/billing/payment`
-  - `GET /api/billing`
-  - `GET /api/billing/policy/{policyId}`
-- Underwriting
-  - `POST /api/underwriting/decision?customerId=1&policyType=AUTO`
 
 ## Intentional Legacy Issues Included
 1. God classes: `PolicyService` and `ClaimsService` are 500+ lines each.

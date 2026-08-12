@@ -1,0 +1,6 @@
+.error-boundary {
+  min-height: 320px;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}

@@ -93,10 +93,27 @@ export function useUpdateCustomer() {
   return useMutation({
     mutationFn: ({ id, customer }: { id: number; customer: Customer }) =>
       updateCustomer(id, toWire(customer)).then(fromWire),
-    onSuccess: (updated) => {
-      if (updated.id !== undefined) {
-        void qc.invalidateQueries({ queryKey: queryKeys.customers.one(updated.id) });
+    onMutate: async ({ id, customer }) => {
+      await qc.cancelQueries({ queryKey: queryKeys.customers.all() });
+      await qc.cancelQueries({ queryKey: queryKeys.customers.one(id) });
+      const previousList = qc.getQueryData<Customer[]>(queryKeys.customers.all());
+      const previousCustomer = qc.getQueryData<Customer>(queryKeys.customers.one(id));
+      qc.setQueryData<Customer[]>(queryKeys.customers.all(), (current) =>
+        current?.map((item) => item.id === id ? { ...item, ...customer, id } : item),
+      );
+      qc.setQueryData<Customer>(queryKeys.customers.one(id), { ...customer, id });
+      return { previousList, previousCustomer };
+    },
+    onError: (_error, variables, context) => {
+      if (context?.previousList) {
+        qc.setQueryData(queryKeys.customers.all(), context.previousList);
       }
+      if (context?.previousCustomer) {
+        qc.setQueryData(queryKeys.customers.one(variables.id), context.previousCustomer);
+      }
+    },
+    onSettled: (_updated, _error, variables) => {
+      void qc.invalidateQueries({ queryKey: queryKeys.customers.one(variables.id) });
       void qc.invalidateQueries({ queryKey: queryKeys.customers.all() });
     },
   });

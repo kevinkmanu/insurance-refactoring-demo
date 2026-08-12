@@ -10,6 +10,16 @@
   }
 }
 
+export function getErrorMessage(error: unknown, fallback = 'An unexpected error occurred.') {
+  if (error instanceof ApiError) {
+    return error.message || `${error.status} ${error.statusText}`;
+  }
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return fallback;
+}
+
 async function parseErrorBody(res: Response): Promise<string> {
   try {
     const text = await res.text();
